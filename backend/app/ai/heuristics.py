@@ -34,11 +34,14 @@ _EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
 _URL_RE = re.compile(r"https?://[^\s\"'<>)\]]+")
 
 
-def _find_terms(text_lower: str, vocabulary: list[str]) -> list[str]:
+def _find_terms(
+    text_lower: str, vocabulary: list[str], *, allow_plural: bool = False
+) -> list[str]:
     """Find vocabulary terms present in text using word boundaries."""
     found: list[str] = []
+    suffix = r"s?(?![a-z0-9])" if allow_plural else r"(?![a-z0-9])"
     for term in vocabulary:
-        pattern = r"(?<![a-z0-9])" + re.escape(term) + r"(?![a-z0-9])"
+        pattern = r"(?<![a-z0-9])" + re.escape(term) + suffix
         if re.search(pattern, text_lower):
             found.append(term)
     return found
@@ -70,7 +73,7 @@ def parse_requirement(text: str) -> ParsedRequirement:
             skills.append(term)
 
     # ---- Titles ----
-    titles = _find_terms(lower, _TITLES)
+    titles = _find_terms(lower, _TITLES, allow_plural=True)
     # keep the most specific (longest) titles only, drop ones contained in another match
     titles = [t for t in titles if not any(t != o and t in o for o in titles)]
 

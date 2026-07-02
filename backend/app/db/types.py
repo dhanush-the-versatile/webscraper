@@ -39,6 +39,19 @@ class Vector(TypeDecorator):
         self.dim = dim or settings.EMBEDDING_DIM
         super().__init__()
 
+    class comparator_factory(TypeDecorator.Comparator):
+        """Expose pgvector operators (valid on PostgreSQL only)."""
+
+        def cosine_distance(self, other: Any):
+            from sqlalchemy import Float
+
+            return self.op("<=>", return_type=Float)(other)
+
+        def l2_distance(self, other: Any):
+            from sqlalchemy import Float
+
+            return self.op("<->", return_type=Float)(other)
+
     def load_dialect_impl(self, dialect: Any) -> Any:
         if dialect.name == "postgresql" and _HAS_PGVECTOR:
             return dialect.type_descriptor(_PGVector(self.dim))
