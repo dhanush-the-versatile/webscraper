@@ -41,7 +41,7 @@ class Page(BaseModel, Generic[T]):
         return (self.total + self.page_size - 1) // self.page_size if self.page_size else 0
 
     @classmethod
-    def create(cls, items: list[T], total: int, params: PaginationParams) -> "Page[T]":
+    def create(cls, items: list[T], total: int, params: PaginationParams) -> Page[T]:
         return cls(items=items, total=total, page=params.page, page_size=params.page_size)
 
 

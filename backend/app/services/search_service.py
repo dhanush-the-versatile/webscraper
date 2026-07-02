@@ -13,6 +13,7 @@ frontend can poll progress.
 
 from __future__ import annotations
 
+import contextlib
 from datetime import UTC, datetime
 from typing import Any
 
@@ -176,10 +177,8 @@ class SearchService:
             )
             seniority = Seniority.UNKNOWN
             if raw_seniority := profile.get("seniority"):
-                try:
+                with contextlib.suppress(ValueError):
                     seniority = Seniority(str(raw_seniority).lower())
-                except ValueError:
-                    pass
 
             source_type = SourceType(source_info.get("type", "other"))
             candidate, _created = await self.candidates.upsert_by_hash(

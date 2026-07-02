@@ -15,7 +15,7 @@ class SkillRead(ORMModel):
     weight: float = 1.0
 
     @classmethod
-    def from_link(cls, link) -> "SkillRead":
+    def from_link(cls, link) -> SkillRead:
         """Build from a ``CandidateSkill`` association object."""
         return cls(name=link.skill.name, weight=link.weight)
 

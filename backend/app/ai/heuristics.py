@@ -124,10 +124,7 @@ def parse_requirement(text: str) -> ParsedRequirement:
     remote = True if re.search(r"(?<![a-z])remote(?![a-z])", lower) else None
 
     # ---- Keywords: salient leftover tokens ----
-    keywords = _dedupe_keep_order(
-        [t for t in titles]
-        + [i for i in industries]
-    )
+    keywords = _dedupe_keep_order(list(titles) + list(industries))
 
     return ParsedRequirement(
         job_titles=[t.title() for t in titles],
@@ -179,9 +176,12 @@ def extract_profile_from_text(text: str, *, url: str = "", title: str = "") -> d
     # Name: prefer the page title pattern "Jane Doe - Senior Engineer | Site"
     full_name = None
     title_head = re.split(r"[|\-–•·:]", title)[0].strip() if title else ""
-    if 2 <= len(title_head.split()) <= 4 and re.fullmatch(r"[A-Za-z'’. -]+", title_head or " "):
-        if title_head[:1].isupper():
-            full_name = title_head
+    if (
+        2 <= len(title_head.split()) <= 4
+        and re.fullmatch(r"[A-Za-z'’. -]+", title_head or " ")
+        and title_head[:1].isupper()
+    ):
+        full_name = title_head
     if not full_name:
         for pat in _NAME_PATTERNS:
             if m := pat.search(text[:2000]):

@@ -102,7 +102,7 @@ class SearchResultRead(ORMModel):
     missing_skills: list[str] = Field(default_factory=list)
 
     @classmethod
-    def from_orm_result(cls, result) -> "SearchResultRead":
+    def from_orm_result(cls, result) -> SearchResultRead:
         return cls(
             id=result.id,
             rank=result.rank,

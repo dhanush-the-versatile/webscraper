@@ -15,8 +15,7 @@ from sqlalchemy import JSON, Text
 from sqlalchemy.dialects.postgresql import JSONB as _PG_JSONB
 from sqlalchemy.types import TypeDecorator
 
-# JSONB on PostgreSQL, generic JSON elsewhere (keeps SQLite tests working).
-JSONB = JSON().with_variant(_PG_JSONB, "postgresql")
+from app.core.config import settings
 
 try:  # pragma: no cover - exercised only when pgvector is installed
     from pgvector.sqlalchemy import Vector as _PGVector
@@ -26,7 +25,8 @@ except Exception:  # pragma: no cover
     _PGVector = None  # type: ignore[assignment]
     _HAS_PGVECTOR = False
 
-from app.core.config import settings
+# JSONB on PostgreSQL, generic JSON elsewhere (keeps SQLite tests working).
+JSONB = JSON().with_variant(_PG_JSONB, "postgresql")
 
 
 class Vector(TypeDecorator):

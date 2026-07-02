@@ -109,9 +109,9 @@ class ExportService:
     def _to_pdf(self, rows: list[dict], title: str) -> bytes:
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib.styles import getSampleStyleSheet
         from reportlab.lib.units import mm
         from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
-        from reportlab.lib.styles import getSampleStyleSheet
 
         buf = io.BytesIO()
         doc = SimpleDocTemplate(

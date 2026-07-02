@@ -8,17 +8,17 @@ from app.services.ranking_service import WEIGHTS, RankingInput, RankingService
 
 
 def make_candidate(**overrides) -> Candidate:
-    defaults = dict(
-        full_name="Test Person",
-        seniority=Seniority.SENIOR,
-        years_experience=6,
-        country="Germany",
-        city="Berlin",
-        technologies=["react", "typescript"],
-        social_links={},
-        github_stats={},
-        dedup_hash="x" * 64,
-    )
+    defaults = {
+        "full_name": "Test Person",
+        "seniority": Seniority.SENIOR,
+        "years_experience": 6,
+        "country": "Germany",
+        "city": "Berlin",
+        "technologies": ["react", "typescript"],
+        "social_links": {},
+        "github_stats": {},
+        "dedup_hash": "x" * 64,
+    }
     defaults.update(overrides)
     return Candidate(**defaults)
 

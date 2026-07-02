@@ -1,0 +1,122 @@
+name: talent-discovery
+
+x-backend-env: &backend-env
+  ENVIRONMENT: ${ENVIRONMENT:-production}
+  SECRET_KEY: ${SECRET_KEY:-change-me-in-production-please-use-openssl-rand-hex-32}
+  POSTGRES_SERVER: db
+  POSTGRES_PORT: "5432"
+  POSTGRES_USER: ${POSTGRES_USER:-talent}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-talent}
+  POSTGRES_DB: ${POSTGRES_DB:-talent}
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  CELERY_BROKER_URL: redis://redis:6379/1
+  CELERY_RESULT_BACKEND: redis://redis:6379/2
+  BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-http://localhost:8080,http://localhost:3000}
+  LOG_JSON: "true"
+  # ---- optional integrations (blank = graceful fallbacks) ----
+  LLM_PROVIDER: ${LLM_PROVIDER:-auto}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-opus-4-8}
+  SERPAPI_API_KEY: ${SERPAPI_API_KEY:-}
+  BING_SEARCH_API_KEY: ${BING_SEARCH_API_KEY:-}
+  GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+  SCRAPER_USER_AGENT: ${SCRAPER_USER_AGENT:-TalentDiscoveryBot/1.0 (+https://example.com/bot)}
+  SCRAPER_RESPECT_ROBOTS: ${SCRAPER_RESPECT_ROBOTS:-true}
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-talent}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-talent}
+      POSTGRES_DB: ${POSTGRES_DB:-talent}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-talent} -d ${POSTGRES_DB:-talent}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    environment:
+      <<: *backend-env
+      RUN_MIGRATIONS: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build: ./backend
+    command: ["celery", "-A", "app.tasks.celery_app", "worker",
+              "-Q", "search,maintenance", "--loglevel", "INFO", "--concurrency", "2"]
+    environment:
+      <<: *backend-env
+      RUN_MIGRATIONS: "false"
+    depends_on:
+      backend:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.tasks.celery_app inspect ping -d celery@$$HOSTNAME | grep -q pong"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  beat:
+    build: ./backend
+    command: ["celery", "-A", "app.tasks.celery_app", "beat", "--loglevel", "INFO"]
+    environment:
+      <<: *backend-env
+      RUN_MIGRATIONS: "false"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    environment:
+      NODE_ENV: production
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "${PUBLIC_PORT:-8080}:80"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
