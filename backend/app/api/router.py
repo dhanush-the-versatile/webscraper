@@ -14,6 +14,7 @@ from app.api.v1 import (
     candidates,
     exports,
     health,
+    history,
     notes,
     saved,
     searches,
@@ -27,4 +28,5 @@ api_router.include_router(candidates.router, prefix="/candidates", tags=["candid
 api_router.include_router(saved.router, prefix="/saved", tags=["saved"])
 api_router.include_router(notes.router, prefix="/notes", tags=["notes"])
 api_router.include_router(exports.router, prefix="/exports", tags=["exports"])
+api_router.include_router(history.router, prefix="/history", tags=["history"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
