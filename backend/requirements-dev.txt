@@ -1,0 +1,14 @@
+-r requirements.txt
+
+# ---- Testing ----
+pytest==8.3.4
+pytest-asyncio==0.25.2
+pytest-cov==6.0.0
+httpx==0.28.1
+aiosqlite==0.20.0          # in-memory async DB for tests
+faker==33.1.0
+
+# ---- Quality ----
+ruff==0.8.6
+mypy==1.14.1
+types-python-jose==3.3.4.20240106
