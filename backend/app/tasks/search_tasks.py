@@ -11,15 +11,27 @@ logger = get_logger("tasks.search")
 
 
 async def _run_search_async(search_id: str, max_results: int) -> int:
-    """Execute the full pipeline in a worker-local session."""
-    # imported lazily so the worker controls event-loop/engine creation
-    from app.db.session import AsyncSessionLocal
+    """Execute the full pipeline with a task-local engine.
+
+    A fresh engine is created inside this coroutine's event loop: the task may
+    run on a Celery worker or in a FastAPI threadpool, and an asyncpg pool
+    must never be shared across event loops.
+    """
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+    from sqlalchemy.pool import NullPool
+
+    from app.core.config import settings
     from app.services import SearchService
 
-    async with AsyncSessionLocal() as session:
-        service = SearchService(session)
-        search = await service.execute(search_id, max_results=max_results)
-        return search.result_count or 0
+    engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool)
+    maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    try:
+        async with maker() as session:
+            service = SearchService(session)
+            search = await service.execute(search_id, max_results=max_results)
+            return search.result_count or 0
+    finally:
+        await engine.dispose()
 
 
 def run_search_sync(search_id: str, max_results: int = 30) -> int:

@@ -154,12 +154,22 @@ class SampleDataProvider(SearchProvider):
         return True
 
     async def search(self, query: GeneratedQuery, *, limit: int = 10) -> list[SearchHit]:
+        from app.ai.taxonomy import COUNTRIES, TECH_TAXONOMY
+
         seed = int(hashlib.sha256(query.query.encode()).hexdigest()[:8], 16)
         rng = random.Random(seed)
         terms = [t.strip('"') for t in query.query.split() if not t.startswith("site:")]
-        skills = [t for t in terms if t.isalpha() and t.islower()][:4] or ["python"]
-        location_terms = [t for t in terms if t[:1].isupper()]
-        city = location_terms[0] if location_terms else "Berlin"
+        # Only real tech-taxonomy terms become skills — query template words
+        # ("portfolio", "resume", "our team", …) must not pollute sample data.
+        skills = list(dict.fromkeys(t.lower() for t in terms if t.lower() in TECH_TAXONOMY))[
+            :4
+        ] or ["python"]
+        # Only a term that is a known city may become the location — job-title
+        # words are capitalized too and must not be mistaken for one.
+        known_cities = {alias for aliases in COUNTRIES.values() for alias in aliases}
+        city = next(
+            (t.title() for t in terms if t.lower() in known_cities), "Berlin"
+        )
 
         hits: list[SearchHit] = []
         count = min(limit, 3 + rng.randint(0, 2))
