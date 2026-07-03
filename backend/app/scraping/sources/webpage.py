@@ -156,7 +156,15 @@ class GenericWebEnricher(ProfileEnricher):
             )
 
         page = extract_page(html, url=hit.url)
-        if len(page.text) < 120:  # not enough public content to extract from
+        if len(page.text) < 120:
+            # Static HTML was near-empty — likely a JS-rendered page. Optionally
+            # retry with the Playwright fetcher (robots already allowed this URL).
+            from app.scraping.browser import fetch_rendered_html
+
+            rendered = await fetch_rendered_html(hit.url)
+            if rendered:
+                page = extract_page(rendered, url=hit.url)
+        if len(page.text) < 120:  # still not enough public content to extract from
             return None
 
         profile = await extract_profile(

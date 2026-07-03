@@ -84,7 +84,7 @@ GET /searches/{id}/results?page=1&page_size=50&min_score=60
 
 | Method & path | Notes |
 |---|---|
-| `GET /candidates` | Browse the pool. Filters: `q` (keyword), `skills`, `countries`, `cities`, `companies`, `industries`, `technologies` (all repeatable), `min_years_experience` |
+| `GET /candidates` | Browse the pool. `q` (query) + `mode` = `keyword` \| `semantic` \| `hybrid`; filters `skills`, `countries`, `cities`, `companies`, `industries`, `technologies` (all repeatable), `min_years_experience`. **keyword** = SQL match; **semantic** = pgvector cosine similarity to the query embedding; **hybrid** = blended keyword-rank + semantic score |
 | `GET /candidates/{id}` | Full profile: bio, skills with weights, experiences, GitHub stats, provenance (`sources[]` with URL/snippet/fetched_at), extraction confidence |
 
 ## Saved candidates & notes

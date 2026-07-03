@@ -48,10 +48,47 @@ class CandidateService:
         keyword: str | None = None,
         filters: SearchFilters | None = None,
         params: PaginationParams,
+        mode: str = "keyword",
     ) -> Page[CandidateRead]:
+        """Browse the pool with one of three modes.
+
+        - ``keyword``: SQL keyword + structured filters (default)
+        - ``semantic``: embedding cosine similarity over the pool (vector search)
+        - ``hybrid``: blended keyword-rank + semantic-similarity score
+
+        Semantic/hybrid need a query string; without one they degrade to keyword.
+        """
+        filter_dict = filters.model_dump(exclude_none=True) if filters else None
+
+        if mode in ("semantic", "hybrid") and keyword:
+            from app.ai import embedding_service
+
+            embedding = await embedding_service.embed(keyword)
+            if mode == "semantic":
+                scored = await self.repo.vector_search(
+                    embedding, limit=params.offset + params.limit, filters=filter_dict
+                )
+                page_items = [c for c, _ in scored[params.offset :]]
+                # NN search has no cheap exact total; report what we can see.
+                total = len(scored)
+            else:
+                pairs, total = await self.repo.hybrid_search(
+                    keyword=keyword,
+                    embedding=embedding,
+                    filters=filter_dict,
+                    offset=params.offset,
+                    limit=params.limit,
+                )
+                page_items = [c for c, _ in pairs]
+            return Page.create(
+                items=[CandidateRead.model_validate(c) for c in page_items],
+                total=total,
+                params=params,
+            )
+
         items, total = await self.repo.search(
             keyword=keyword,
-            filters=filters.model_dump(exclude_none=True) if filters else None,
+            filters=filter_dict,
             offset=params.offset,
             limit=params.limit,
         )

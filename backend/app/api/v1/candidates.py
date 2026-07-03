@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, Query
 
 from app.api.deps import DB, CurrentUser, Pagination
@@ -12,12 +14,16 @@ router = APIRouter()
 
 
 @router.get("", response_model=Page[CandidateRead],
-            summary="Browse/filter collected candidates")
+            summary="Browse/filter collected candidates (keyword, semantic, or hybrid)")
 async def list_candidates(
     user: CurrentUser,
     db: DB,
     params: Pagination,
-    q: str | None = Query(default=None, max_length=200, description="Keyword search"),
+    q: str | None = Query(default=None, max_length=200, description="Search query"),
+    mode: Literal["keyword", "semantic", "hybrid"] = Query(
+        default="keyword",
+        description="keyword = SQL match; semantic = vector similarity; hybrid = blend",
+    ),
     skills: list[str] = Query(default=[]),
     countries: list[str] = Query(default=[]),
     cities: list[str] = Query(default=[]),
@@ -36,7 +42,7 @@ async def list_candidates(
         min_years_experience=min_years_experience,
     )
     return await CandidateService(db).list_candidates(
-        keyword=q, filters=filters, params=params
+        keyword=q, filters=filters, params=params, mode=mode
     )
 
 

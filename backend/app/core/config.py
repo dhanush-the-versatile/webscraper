@@ -82,6 +82,8 @@ class Settings(BaseSettings):
     SCRAPER_MAX_RETRIES: int = 3
     SCRAPER_RESPECT_ROBOTS: bool = True
     SCRAPER_HTTP_PROXY: str | None = None
+    SCRAPER_ENABLE_BROWSER: bool = False  # Playwright rendering for JS-heavy pages
+    SCRAPER_BROWSER_EXECUTABLE: str | None = None  # optional chromium path override
 
     # ---- OAuth ----
     GOOGLE_CLIENT_ID: str | None = None

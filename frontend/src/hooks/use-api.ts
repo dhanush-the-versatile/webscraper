@@ -121,8 +121,11 @@ export function useSearchResults(searchId: string | null, minScore?: number) {
 
 /* --------------------------- candidates ------------------------------- */
 
+export type SearchMode = "keyword" | "semantic" | "hybrid";
+
 export interface CandidateFilters {
   q?: string;
+  mode?: SearchMode;
   skills?: string[];
   countries?: string[];
   cities?: string[];

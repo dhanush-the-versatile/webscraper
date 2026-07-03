@@ -19,7 +19,7 @@ AI-powered talent sourcing: a recruiter types a requirement in plain language �
 |---|---|
 | **AI understanding** | LangGraph pipeline: NL requirement → structured spec (titles, skills, seniority, years, location, industry, …) with deterministic fallback when no LLM key is set |
 | **Query generation** | Per-source optimized queries (`site:linkedin.com/in …`, `site:github.com …`, portfolio/team-page variants), source-aware (design roles → Behance/Dribbble, data roles → Kaggle) |
-| **Public data collection** | Modular pipeline: search → collect URLs → fetch public pages → extract → clean → normalize → dedupe → store. Retry, timeout, parallel async execution, Redis caching, per-host pacing, robots.txt compliance, configurable UA, optional proxy |
+| **Public data collection** | Modular pipeline: search → collect URLs → fetch public pages → extract → clean → normalize → dedupe → store. Retry, timeout, parallel async execution, Redis caching, per-host pacing, robots.txt compliance, configurable UA, optional proxy, opt-in Playwright rendering for JS-heavy pages |
 | **Sources** | GitHub + Stack Overflow via **official APIs**, LinkedIn via **search-snippets only** (never fetched), portfolios / company team pages / Medium / Dev.to / Kaggle / Behance / Dribbble / research pages via robots-gated extraction, SerpAPI/Bing search APIs |
 | **Ranking** | 0–100 breakdown: skill, experience, technology, location, portfolio, GitHub activity, semantic relevance (pgvector embeddings) + overall score, AI summary and ranking explanation per candidate |
 | **Search** | Keyword, structured filters, semantic (pgvector cosine), hybrid |

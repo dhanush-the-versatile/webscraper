@@ -135,25 +135,80 @@ class CandidateRepository(BaseRepository[Candidate]):
         return items, total
 
     async def vector_search(
-        self, embedding: list[float], *, limit: int = 50
+        self,
+        embedding: list[float],
+        *,
+        limit: int = 50,
+        filters: dict[str, Any] | None = None,
     ) -> list[tuple[Candidate, float]]:
-        """Nearest-neighbour search on pgvector (cosine distance).
+        """Nearest-neighbour search returning ``(candidate, similarity ∈ [0,1])``.
 
-        Returns ``(candidate, similarity)`` pairs where similarity ∈ [0, 1].
-        On non-Postgres dialects this returns an empty list and callers fall
-        back to keyword search.
+        Uses pgvector cosine distance on PostgreSQL; on other dialects (the
+        SQLite test suite) it falls back to computing cosine similarity in
+        Python over the (bounded) candidate set, so semantic search behaves
+        identically everywhere.
         """
-        if self.db.bind.dialect.name != "postgresql":  # pragma: no cover
-            return []
-        distance = Candidate.embedding.cosine_distance(embedding)  # type: ignore[attr-defined]
-        stmt = (
-            select(Candidate, distance.label("distance"))
-            .where(Candidate.embedding.is_not(None))
-            .order_by(distance)
-            .limit(limit)
+        if self.db.bind.dialect.name == "postgresql":
+            distance = Candidate.embedding.cosine_distance(embedding)  # type: ignore[attr-defined]
+            stmt = select(Candidate, distance.label("distance")).where(
+                Candidate.embedding.is_not(None)
+            )
+            if filters:
+                stmt = self._apply_filters(stmt, filters)
+            stmt = stmt.order_by(distance).limit(limit)
+            rows = (await self.db.execute(stmt)).all()
+            return [(row[0], max(0.0, 1.0 - float(row[1]))) for row in rows]
+
+        # Portable fallback: score in Python.
+        from app.ai.embeddings import cosine_similarity
+
+        stmt = select(Candidate).where(Candidate.embedding.is_not(None))
+        if filters:
+            stmt = self._apply_filters(stmt, filters)
+        candidates = list((await self.db.execute(stmt.limit(1000))).scalars().all())
+        scored = [
+            (candidate, max(0.0, cosine_similarity(embedding, candidate.embedding or [])))
+            for candidate in candidates
+        ]
+        scored.sort(key=lambda pair: pair[1], reverse=True)
+        return scored[:limit]
+
+    async def hybrid_search(
+        self,
+        *,
+        keyword: str,
+        embedding: list[float],
+        filters: dict[str, Any] | None = None,
+        offset: int = 0,
+        limit: int = 20,
+        keyword_weight: float = 0.5,
+    ) -> tuple[list[tuple[Candidate, float]], int]:
+        """Blend keyword matching and semantic similarity into one ranking.
+
+        Keyword hits get a rank-decayed score; semantic scores come from
+        ``vector_search``. Final score = weighted sum, candidates appearing in
+        either list are included.
+        """
+        keyword_hits, _ = await self.search(
+            keyword=keyword, filters=filters, offset=0, limit=200
         )
-        rows = (await self.db.execute(stmt)).all()
-        return [(row[0], max(0.0, 1.0 - float(row[1]))) for row in rows]
+        semantic_hits = await self.vector_search(embedding, limit=200, filters=filters)
+
+        scores: dict[str, float] = {}
+        by_id: dict[str, Candidate] = {}
+        for rank, candidate in enumerate(keyword_hits):
+            by_id[candidate.id] = candidate
+            scores[candidate.id] = keyword_weight * (1.0 / (1.0 + rank * 0.15))
+        for candidate, similarity in semantic_hits:
+            by_id.setdefault(candidate.id, candidate)
+            scores[candidate.id] = scores.get(candidate.id, 0.0) + (
+                (1.0 - keyword_weight) * similarity
+            )
+
+        ordered = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+        total = len(ordered)
+        page = ordered[offset : offset + limit]
+        return [(by_id[cid], round(score, 4)) for cid, score in page], total
 
     # ------------------------------------------------------------------ #
     # Writes

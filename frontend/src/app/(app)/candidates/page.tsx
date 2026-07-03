@@ -9,8 +9,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCandidates, type CandidateFilters } from "@/hooks/use-api";
+import { useCandidates, type CandidateFilters, type SearchMode } from "@/hooks/use-api";
 
 function useDebounced<T>(value: T, delay = 350): T {
   const [debounced, setDebounced] = useState(value);
@@ -23,6 +30,7 @@ function useDebounced<T>(value: T, delay = 350): T {
 
 export default function CandidatesPage() {
   const [keyword, setKeyword] = useState("");
+  const [mode, setMode] = useState<SearchMode>("keyword");
   const [skillInput, setSkillInput] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
   const [country, setCountry] = useState("");
@@ -35,11 +43,12 @@ export default function CandidatesPage() {
   const filters: CandidateFilters = useMemo(
     () => ({
       q: debouncedKeyword || undefined,
+      mode: debouncedKeyword ? mode : undefined,
       skills: skills.length ? skills : undefined,
       countries: country ? [country] : undefined,
       min_years_experience: minYears ? Number(minYears) : undefined,
     }),
-    [debouncedKeyword, skills, country, minYears],
+    [debouncedKeyword, mode, skills, country, minYears],
   );
 
   const { data, isLoading } = useCandidates(filters, page);
@@ -63,8 +72,8 @@ export default function CandidatesPage() {
 
       <Card>
         <CardContent className="space-y-4 p-4">
-          <div className="flex gap-2">
-            <div className="relative flex-1">
+          <div className="flex flex-wrap gap-2">
+            <div className="relative min-w-48 flex-1">
               <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={keyword}
@@ -76,6 +85,22 @@ export default function CandidatesPage() {
                 className="pl-9"
               />
             </div>
+            <Select
+              value={mode}
+              onValueChange={(value) => {
+                setMode(value as SearchMode);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-32" aria-label="Search mode">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="keyword">Keyword</SelectItem>
+                <SelectItem value="semantic">Semantic</SelectItem>
+                <SelectItem value="hybrid">Hybrid</SelectItem>
+              </SelectContent>
+            </Select>
             <Button
               variant={showFilters ? "secondary" : "outline"}
               onClick={() => setShowFilters((current) => !current)}
